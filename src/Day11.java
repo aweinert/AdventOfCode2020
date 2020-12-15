@@ -58,6 +58,19 @@ class SpawnRule implements EvolutionRule {
     }
 }
 
+class SpawnRule2 implements EvolutionRule {
+    @Override
+    public boolean isApplicable(CellularAutomaton automaton, int x, int y) {
+        return automaton.getState(x, y).equals(CellState.EMPTY_SEAT);
+    }
+
+    @Override
+    public CellState evolve(CellularAutomaton automaton, int x, int y) {
+        final long neighboringOccupiedSeats = automaton.countInSightline(x, y, CellState.OCCUPIED_SEAT);
+        return neighboringOccupiedSeats == 0 ? CellState.OCCUPIED_SEAT : CellState.EMPTY_SEAT;
+    }
+}
+
 class KillRule implements EvolutionRule {
 
     @Override
@@ -69,6 +82,20 @@ class KillRule implements EvolutionRule {
     public CellState evolve(CellularAutomaton automaton, int x, int y) {
         final long neighboringOccupiedSeats = automaton.countInVicinity(x, y, CellState.OCCUPIED_SEAT);
         return neighboringOccupiedSeats >= 4 ? CellState.EMPTY_SEAT : CellState.OCCUPIED_SEAT;
+    }
+}
+
+class KillRule2 implements EvolutionRule {
+
+    @Override
+    public boolean isApplicable(CellularAutomaton automaton, int x, int y) {
+        return automaton.getState(x, y).equals(CellState.OCCUPIED_SEAT);
+    }
+
+    @Override
+    public CellState evolve(CellularAutomaton automaton, int x, int y) {
+        final long neighboringOccupiedSeats = automaton.countInSightline(x, y, CellState.OCCUPIED_SEAT);
+        return neighboringOccupiedSeats >= 5 ? CellState.EMPTY_SEAT : CellState.OCCUPIED_SEAT;
     }
 }
 
@@ -169,6 +196,18 @@ class CellularAutomaton {
         return this.state.length;
     }
 
+    CellState getSeatInSightline(int xStart, int yStart, int xOffset, int yOffset) {
+        int currentX = xStart, currentY = yStart;
+        CellState currentCellState;
+        do {
+            currentX += xOffset;
+            currentY += yOffset;
+            currentCellState = getState(currentX, currentY);
+        } while (0 <= currentX && currentX < this.getWidth() && 0 <= currentY && currentY < this.getHeight() &&
+            currentCellState.equals(CellState.NO_SEAT));
+        return currentCellState;
+    }
+
     public long countInVicinity(int x, int y, CellState stateToCount) {
         return Stream.of(
                 this.getState(x - 1, y-1),
@@ -181,6 +220,20 @@ class CellularAutomaton {
                 .filter(state -> state.equals(stateToCount))
                 .count();
     }
+
+    public long countInSightline(int x, int y, CellState stateToCount) {
+        return Stream.of(
+                this.getSeatInSightline(x, y, -1, -1),
+                this.getSeatInSightline(x, y, -1, 0),
+                this.getSeatInSightline(x, y, -1, 1),
+                this.getSeatInSightline(x, y, 0, -1),
+                this.getSeatInSightline(x, y, 0, 1),
+                this.getSeatInSightline(x, y, 1, -1),
+                this.getSeatInSightline(x, y, 1, 0),
+                this.getSeatInSightline(x, y, 1, 1))
+                .filter(state -> state.equals(stateToCount))
+                .count();
+    }
 }
 
 public class Day11 {
@@ -190,8 +243,14 @@ public class Day11 {
         automaton.addRule(new KillRule());
         automaton.evolveUntilStability();
 
-
         System.out.println(automaton.countOccupiedSeats());
+
+        CellularAutomaton automaton2 = new CellularAutomaton(Files.readAllLines(Paths.get("input", "day11")));
+        automaton2.addRule(new SpawnRule2());
+        automaton2.addRule(new KillRule2());
+        automaton2.evolveUntilStability();
+
+        System.out.println(automaton2.countOccupiedSeats());
     }
 
     // Used for debugging during development
